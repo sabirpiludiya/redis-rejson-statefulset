@@ -1,0 +1,52 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: rejson
+spec:
+  ports:
+  - port: 6379
+  selector:
+    app: rejson
+---
+apiVersion: apps/v1 # for versions before 1.9.0 use apps/v1beta2
+kind: StatefulSet
+metadata:
+  name: rejson
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: rejson
+  serviceName: rejson
+  template:
+    metadata:
+      labels:
+        app: rejson
+    spec:
+      containers:
+      - image: redislabs/rejson
+        args: ["--appendonly", "yes", "--save", "900", "1", "--save", "30", "2", "--loadmodule", "/usr/lib/redis/modules/rejson.so"] 
+        name: rejson
+        ports:
+        - containerPort: 6379
+          name: rejson
+        volumeMounts:
+        - name: rejson-persistent-storage
+          mountPath: /data
+      volumes:
+      - name: rejson-persistent-storage
+        persistentVolumeClaim: 
+          claimName: rejson-pv-claim
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: rejson-pv-claim
+  labels:
+    app: rejson
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 20Gi
